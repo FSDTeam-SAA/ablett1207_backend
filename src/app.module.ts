@@ -6,7 +6,11 @@ import { AppService } from './app.service';
 import config from './app/config';
 import { AuthModule } from './app/module/auth/auth.module';
 import { UserModule } from './app/module/user/user.module';
-import { DashboardModule } from './app/module/dashboard/dashboard.module';
+// import { DashboardModule } from './app/module/dashboard/dashboard.module';
+import { ServiceModule } from './app/module/service/service.module';
+import { FaqModule } from './app/module/faq/faq.module';
+import { ProjectModule } from './app/module/project/project.module';
+
 
 @Module({
   imports: [
@@ -14,7 +18,11 @@ import { DashboardModule } from './app/module/dashboard/dashboard.module';
     MongooseModule.forRoot(config.mongoUri as string),
     AuthModule,
     UserModule,
-    DashboardModule,
+    
+    // DashboardModule,
+    ServiceModule,
+    FaqModule,
+    ProjectModule,
   ],
 
   controllers: [AppController],
