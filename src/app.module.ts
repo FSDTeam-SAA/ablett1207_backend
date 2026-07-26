@@ -10,7 +10,7 @@ import { UserModule } from './app/module/user/user.module';
 import { ServiceModule } from './app/module/service/service.module';
 import { FaqModule } from './app/module/faq/faq.module';
 import { ProjectModule } from './app/module/project/project.module';
-
+import { QuoteModule } from './app/module/quote/quote.module';
 
 @Module({
   imports: [
@@ -23,6 +23,7 @@ import { ProjectModule } from './app/module/project/project.module';
     ServiceModule,
     FaqModule,
     ProjectModule,
+     QuoteModule,
   ],
 
   controllers: [AppController],
