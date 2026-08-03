@@ -1,20 +1,22 @@
-// import { Module } from '@nestjs/common';
-// import { MongooseModule } from '@nestjs/mongoose';
-// import { DashboardService } from './dashboard.service';
-// import { User, UserSchema } from '../user/entities/user.entity';
-// import { Payment, PaymentSchema } from '../payment/entities/payment.entity';
-// import { HistoryRecord, HistorySchema } from '../history/entity/history.entity';
-// import { DashboardController } from './dashbaord.controller';
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { Project, ProjectSchema } from '../project/entities/project.entity';
+import { Service, ServiceSchema } from '../service/entities/service.entity';
+import { Quote, QuoteSchema } from '../quote/entities/quote.entity';
+import { Booking, BookingSchema } from '../booking/entities/booking.entity';
+import { DashboardService } from './dashboard.service';
+import { DashboardController } from './dashbaord.controller';
 
-// @Module({
-//   imports: [
-//     MongooseModule.forFeature([
-//       { name: User.name, schema: UserSchema },
-//       { name: HistoryRecord.name, schema: HistorySchema },
-//       { name: Payment.name, schema: PaymentSchema },
-//     ]),
-//   ],
-//   controllers: [DashboardController],
-//   providers: [DashboardService],
-// })
-// export class DashboardModule {}
+@Module({
+  imports: [
+    MongooseModule.forFeature([
+      { name: Project.name, schema: ProjectSchema },
+      { name: Service.name, schema: ServiceSchema },
+      { name: Quote.name, schema: QuoteSchema },
+      { name: Booking.name, schema: BookingSchema },
+    ]),
+  ],
+  controllers: [DashboardController],
+  providers: [DashboardService],
+})
+export class DashboardModule {}
