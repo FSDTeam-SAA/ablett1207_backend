@@ -57,7 +57,7 @@ export class Quote {
   })
   message: string;
 
-  @Prop({ default: null })
+  @Prop({ type: String, default: null })
   photo: string | null;
 }
 
