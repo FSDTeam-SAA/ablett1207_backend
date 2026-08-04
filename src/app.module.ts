@@ -13,19 +13,21 @@ import { ProjectModule } from './app/module/project/project.module';
 import { QuoteModule } from './app/module/quote/quote.module';
 import { ChatModule } from './app/module/chat/chat.module';
 
+import { BookingModule } from './app/module/booking/booking.module';
+import { DashboardModule } from './app/module/dashboard/dashboard.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     MongooseModule.forRoot(config.mongoUri as string),
     AuthModule,
     UserModule,
-
-    // DashboardModule,
     ServiceModule,
     FaqModule,
     ProjectModule,
-    QuoteModule,
     ChatModule,
+    QuoteModule,
+    BookingModule,
+    DashboardModule,
   ],
 
   controllers: [AppController],
