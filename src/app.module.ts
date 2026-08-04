@@ -11,7 +11,8 @@ import { ServiceModule } from './app/module/service/service.module';
 import { FaqModule } from './app/module/faq/faq.module';
 import { ProjectModule } from './app/module/project/project.module';
 import { QuoteModule } from './app/module/quote/quote.module';
-
+import { BookingModule } from './app/module/booking/booking.module';
+import { DashboardModule } from './app/module/dashboard/dashboard.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -24,6 +25,8 @@ import { QuoteModule } from './app/module/quote/quote.module';
     FaqModule,
     ProjectModule,
      QuoteModule,
+    BookingModule,
+    DashboardModule,
   ],
 
   controllers: [AppController],
