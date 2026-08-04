@@ -56,28 +56,42 @@ export class QuoteService {
     }
   }
 
-  async create(dto: CreateQuoteDto, file?: Express.Multer.File) {
+  async create(dto: CreateQuoteDto, userId?: string, file?: Express.Multer.File) {
     let photo: string | null = null;
     if (file) {
       const uploaded = await fileUpload.uploadToCloudinary(file);
       photo = uploaded.url;
     }
 
-    const created = await this.quoteModel.create({ ...dto, photo });
+    const created = await this.quoteModel.create({
+      ...dto,
+      photo,
+      userId: userId ?? null,
+    });
     await this.notifyAdminIfEmergency(created);
     return created;
   }
 
-  async findAll(params: IFilterParams & { status?: string }, options: IOptions) {
+  async findAll(
+    params: IFilterParams & { status?: string },
+    options: IOptions,
+    currentUser: { id: string; role: string },
+  ) {
     const { limit, page, skip, sortBy, sortOrder } = paginationHelper(options);
     const { status, ...restParams } = params;
     const whereConditions = buildWhereConditions(
       restParams,
       quoteSearchAbleFields,
-    );
+    ) as Record<string, unknown>;
 
     if (status) {
-      (whereConditions as Record<string, unknown>).projectStatus = status;
+      whereConditions.projectStatus = status;
+    }
+
+    // Admin sees every quote. A logged-in non-admin only ever sees
+    // quotes they personally submitted while logged in.
+    if (currentUser.role !== 'admin') {
+      whereConditions.userId = currentUser.id;
     }
 
     const total = await this.quoteModel.countDocuments(whereConditions);
@@ -93,11 +107,19 @@ export class QuoteService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, currentUser: { id: string; role: string }) {
     const result = await this.quoteModel.findById(id);
     if (!result) {
       throw new HttpException('Quote request not found', 404);
     }
+
+    const isOwner =
+      result.userId && result.userId.toString() === currentUser.id;
+
+    if (currentUser.role !== 'admin' && !isOwner) {
+      throw new HttpException('Forbidden', 403);
+    }
+
     return result;
   }
 
