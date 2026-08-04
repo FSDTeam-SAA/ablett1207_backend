@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 export const PROJECT_STATUSES = ['normal', 'emergency'] as const;
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
@@ -59,6 +59,11 @@ export class Quote {
 
   @Prop({ type: String, default: null })
   photo: string | null;
+
+  // Set automatically if the request was submitted while logged in.
+  // Stays null for guest submissions.
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  userId: Types.ObjectId | null;
 }
 
 export const QuoteSchema = SchemaFactory.createForClass(Quote);

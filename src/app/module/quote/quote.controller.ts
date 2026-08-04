@@ -29,6 +29,7 @@ import { CreateQuoteDto } from './dto/create-quote.dto';
 import { UpdateQuoteDto } from './dto/update-quote.dto';
 import { fileUpload } from 'src/app/helpers/fileUploder';
 import AuthGuard from 'src/app/middlewares/auth.guard';
+import { OptionalAuthGuard } from 'src/app/middlewares/optional-auth.guard';
 import pick from 'src/app/helpers/pick';
 import { PROJECT_STATUSES } from './entities/quote.entity';
 
@@ -38,7 +39,12 @@ export class QuoteController {
   constructor(private readonly quoteService: QuoteService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Submit a quote request (public)' })
+  @ApiOperation({
+    summary:
+      'Submit a quote request (public - works for guests; if a logged-in user\'s token is sent, the quote is linked to their account)',
+  })
+  @ApiBearerAuth('access-token')
+  @UseGuards(OptionalAuthGuard)
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('photo', fileUpload.uploadConfig))
   @ApiBody({
@@ -63,10 +69,15 @@ export class QuoteController {
   })
   @HttpCode(HttpStatus.CREATED)
   async create(
+    @Req() req: Request,
     @Body() createQuoteDto: CreateQuoteDto,
     @UploadedFile() photo?: Express.Multer.File,
   ) {
-    const result = await this.quoteService.create(createQuoteDto, photo);
+    const result = await this.quoteService.create(
+      createQuoteDto,
+      req.user?.id,
+      photo,
+    );
     return {
       message: 'Quote request submitted successfully',
       data: result,
@@ -111,9 +122,12 @@ export class QuoteController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all quote requests, filterable by status (admin only)' })
+  @ApiOperation({
+    summary:
+      'Get quote requests (logged in only) - admin sees all, a regular user sees only their own',
+  })
   @ApiBearerAuth('access-token')
-  @UseGuards(AuthGuard('admin'))
+  @UseGuards(AuthGuard('user', 'admin'))
   @ApiQuery({ name: 'searchTerm', required: false, type: String, example: '' })
   @ApiQuery({
     name: 'status',
@@ -139,7 +153,10 @@ export class QuoteController {
   async findAll(@Req() req: Request) {
     const params = pick(req.query, ['searchTerm', 'status']);
     const options = pick(req.query, ['limit', 'page', 'sortBy', 'sortOrder']);
-    const result = await this.quoteService.findAll(params, options);
+    const result = await this.quoteService.findAll(params, options, {
+      id: req.user!.id,
+      role: req.user!.role,
+    });
     return {
       message: 'Quote requests fetched successfully',
       meta: result.meta,
@@ -148,13 +165,19 @@ export class QuoteController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get single quote request by id (admin only)' })
+  @ApiOperation({
+    summary:
+      'Get single quote request (logged in only) - admin can view any, a regular user only their own',
+  })
   @ApiBearerAuth('access-token')
-  @UseGuards(AuthGuard('admin'))
+  @UseGuards(AuthGuard('user', 'admin'))
   @ApiParam({ name: 'id', type: String })
   @HttpCode(HttpStatus.OK)
-  async findOne(@Param('id') id: string) {
-    const result = await this.quoteService.findOne(id);
+  async findOne(@Param('id') id: string, @Req() req: Request) {
+    const result = await this.quoteService.findOne(id, {
+      id: req.user!.id,
+      role: req.user!.role,
+    });
     return {
       message: 'Quote request fetched successfully',
       data: result,
