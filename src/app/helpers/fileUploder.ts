@@ -4,6 +4,7 @@ import streamifier from 'streamifier';
 import { v2 as cloudinary } from 'cloudinary';
 import { HttpException } from '@nestjs/common';
 import config from '../config';
+import { randomUUID } from 'crypto';
 
 cloudinary.config({
   cloud_name: config.cloudinary.name,
@@ -25,7 +26,7 @@ type CloudinaryUploadResult = {
 
 type ImageUploadOptions = {
   folder?: string;
-  resourceType?: 'image' | 'video';
+  resourceType?: 'image' | 'video' | 'raw';
   transformation?: Record<string, unknown>;
   publicId?: string;
 };
@@ -101,6 +102,54 @@ const uploadVideoToCloudinary = async (
     folder: 'healthcare_app/reviews',
     resourceType: 'video',
   });
+};
+
+export type ChatAttachmentUploadResult = {
+  type: 'image' | 'pdf';
+  url: string;
+  publicId: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+};
+
+const CHAT_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+]);
+
+const uploadChatAttachment = async (
+  file: Express.Multer.File,
+): Promise<ChatAttachmentUploadResult> => {
+  if (!file?.buffer?.length) {
+    throw new HttpException('No valid attachment provided', 400);
+  }
+
+  const isImage = CHAT_IMAGE_TYPES.has(file.mimetype);
+  const isPdf = file.mimetype === 'application/pdf';
+  if (!isImage && !isPdf) {
+    throw new HttpException(
+      'Only JPG, PNG, WEBP, GIF, and PDF attachments are allowed',
+      400,
+    );
+  }
+
+  const uploaded = await uploadBufferToCloudinary(file.buffer, {
+    folder: 'ablett1207/chat',
+    resourceType: isPdf ? 'raw' : 'image',
+    publicId: isPdf ? `chat-${randomUUID()}.pdf` : undefined,
+  });
+
+  return {
+    type: isPdf ? 'pdf' : 'image',
+    url: uploaded.url,
+    publicId: uploaded.public_id,
+    originalName: file.originalname,
+    mimeType: file.mimetype,
+    size: file.size,
+  };
 };
 
 const uploadImageSourceToCloudinary = async (source: string) => {
@@ -196,6 +245,7 @@ const deleteVideoFromCloudinary = async (public_id: string): Promise<void> => {
 export const fileUpload = {
   uploadToCloudinary,
   uploadVideoToCloudinary,
+  uploadChatAttachment,
   uploadImageSourceToCloudinary,
   deleteFromCloudinary,
   deleteVideoFromCloudinary,

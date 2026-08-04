@@ -57,4 +57,5 @@ export default {
     webhookBaseUrl: process.env.TWILIO_WEBHOOK_BASE_URL,
   },
   frontendUrl: process.env.FRONTEND_URL,
+  supportUserId: process.env.SUPPORT_USER_ID,
 };

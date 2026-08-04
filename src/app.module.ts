@@ -11,6 +11,7 @@ import { ServiceModule } from './app/module/service/service.module';
 import { FaqModule } from './app/module/faq/faq.module';
 import { ProjectModule } from './app/module/project/project.module';
 import { QuoteModule } from './app/module/quote/quote.module';
+import { ChatModule } from './app/module/chat/chat.module';
 
 @Module({
   imports: [
@@ -18,12 +19,13 @@ import { QuoteModule } from './app/module/quote/quote.module';
     MongooseModule.forRoot(config.mongoUri as string),
     AuthModule,
     UserModule,
-    
+
     // DashboardModule,
     ServiceModule,
     FaqModule,
     ProjectModule,
-     QuoteModule,
+    QuoteModule,
+    ChatModule,
   ],
 
   controllers: [AppController],
