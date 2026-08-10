@@ -130,12 +130,17 @@ export class ChatService {
         'Support conversations can only contain users',
       );
     }
+    // Convert both sides explicitly. Message IDs are stored as ObjectIds, and
+    // support history must always match the authenticated support account and
+    // the selected user as database IDs (not merely string representations).
+    const currentUserObjectId = new Types.ObjectId(userId);
+    const participantObjectId = new Types.ObjectId(participantId);
     const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 200);
     const messages = await this.messageModel
       .find({
         $or: [
-          { senderId: userId, receiverId: participantId },
-          { senderId: participantId, receiverId: userId },
+          { senderId: currentUserObjectId, receiverId: participantObjectId },
+          { senderId: participantObjectId, receiverId: currentUserObjectId },
         ],
       })
       .sort({ createdAt: 1 })
