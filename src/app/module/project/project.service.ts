@@ -10,12 +10,19 @@ import buildWhereConditions from 'src/app/helpers/buildWhereConditions';
 import { IFilterParams } from 'src/app/helpers/pick';
 
 const projectSearchAbleFields = [
-  'projectName',
-  'location',
-  'projectType',
-  'category',
+  'title',
   'description',
+  'scope',
+  'challenge',
+  'timeline',
 ];
+
+export interface ProjectImageFiles {
+  coverImage?: Express.Multer.File[];
+  before?: Express.Multer.File[];
+  during?: Express.Multer.File[];
+  completed?: Express.Multer.File[];
+}
 
 @Injectable()
 export class ProjectService {
@@ -24,17 +31,30 @@ export class ProjectService {
     private readonly projectModel: Model<ProjectDocument>,
   ) {}
 
-  private async uploadImages(files?: Express.Multer.File[]) {
-    if (!files?.length) return [];
-    const uploaded = await Promise.all(
-      files.map((file) => fileUpload.uploadToCloudinary(file)),
+  private async uploadNamedImages(files?: ProjectImageFiles) {
+    const result: Record<string, string> = {};
+    if (!files) return result;
+
+    const entries = Object.entries(files) as [
+      keyof ProjectImageFiles,
+      Express.Multer.File[] | undefined,
+    ][];
+
+    await Promise.all(
+      entries.map(async ([field, fileArray]) => {
+        const file = fileArray?.[0];
+        if (!file) return;
+        const uploaded = await fileUpload.uploadToCloudinary(file);
+        result[field] = uploaded.url;
+      }),
     );
-    return uploaded.map((item) => item.url);
+
+    return result;
   }
 
-  async create(dto: CreateProjectDto, files?: Express.Multer.File[]) {
-    const images = await this.uploadImages(files);
-    return this.projectModel.create({ ...dto, images });
+  async create(dto: CreateProjectDto, files?: ProjectImageFiles) {
+    const images = await this.uploadNamedImages(files);
+    return this.projectModel.create({ ...dto, ...images });
   }
 
   async findAll(params: IFilterParams, options: IOptions) {
@@ -65,22 +85,19 @@ export class ProjectService {
     return result;
   }
 
-  async update(
-    id: string,
-    dto: UpdateProjectDto,
-    files?: Express.Multer.File[],
-  ) {
+  async update(id: string, dto: UpdateProjectDto, files?: ProjectImageFiles) {
     const project = await this.projectModel.findById(id);
     if (!project) {
       throw new HttpException('Project not found', 404);
     }
 
-    const payload: Record<string, unknown> = { ...dto };
-    if (files?.length) {
-      payload.images = await this.uploadImages(files);
-    }
+    const images = await this.uploadNamedImages(files);
 
-    return this.projectModel.findByIdAndUpdate(id, payload, { new: true });
+    return this.projectModel.findByIdAndUpdate(
+      id,
+      { ...dto, ...images },
+      { new: true },
+    );
   }
 
   async remove(id: string) {

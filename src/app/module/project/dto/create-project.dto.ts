@@ -1,35 +1,54 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString } from 'class-validator';
 
 export class CreateProjectDto {
-  @ApiProperty({ example: 'Lakeside Family Residence' })
+  @ApiPropertyOptional({ example: 'Lakeside Family Residence' })
+  @IsOptional()
   @IsString()
-  projectName: string;
+  title?: string;
 
-  @ApiProperty({ example: 'Austin, TX' })
+  @ApiPropertyOptional({ example: 'A full-scope residential rebuild...' })
+  @IsOptional()
   @IsString()
-  location: string;
+  description?: string;
 
-  @ApiProperty({ example: 'New Construction' })
+  @ApiPropertyOptional({ example: 'Full foundation-to-finish residential build' })
+  @IsOptional()
   @IsString()
-  projectType: string;
+  scope?: string;
 
-  @ApiProperty({
-    example: 'Residential',
-    description: 'Free text category, handled/validated by the frontend',
-  })
+  @ApiPropertyOptional({ example: 'Unstable soil required deep pier foundations' })
+  @IsOptional()
   @IsString()
-  category: string;
+  challenge?: string;
 
-  @ApiProperty({ example: 'March 2025' })
+  @ApiPropertyOptional({ example: 'Engineered a helical pier foundation system' })
+  @IsOptional()
   @IsString()
-  completion: string;
+  a7Solution?: string;
 
-  @ApiProperty({ example: '6 months' })
+  @ApiPropertyOptional({ example: 'Delivered 3 weeks ahead of schedule' })
+  @IsOptional()
   @IsString()
-  duration: string;
+  result?: string;
 
-  @ApiProperty({ example: 'Describe your project in detail...' })
+  @ApiPropertyOptional({ example: 'Excavator, concrete pump, tower crane' })
+  @IsOptional()
   @IsString()
-  description: string;
+  equipmentsUsed?: string;
+
+  @ApiPropertyOptional({ example: '6 months (Mar 2025 - Sep 2025)' })
+  @IsOptional()
+  @IsString()
+  timeline?: string;
+
+  @ApiPropertyOptional({ example: 'Poured slab foundation, framing complete' })
+  @IsOptional()
+  @IsString()
+  constructionProcess?: string;
+
+  @ApiPropertyOptional({ example: 'Client was closely involved in material selection' })
+  @IsOptional()
+  @IsString()
+  projectExperience?: string;
 }
