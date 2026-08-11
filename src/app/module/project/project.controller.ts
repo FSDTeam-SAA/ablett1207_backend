@@ -13,7 +13,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -24,12 +24,39 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
-import { ProjectService } from './project.service';
+import { ProjectService, ProjectImageFiles } from './project.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { fileUpload } from 'src/app/helpers/fileUploder';
 import AuthGuard from 'src/app/middlewares/auth.guard';
 import pick from 'src/app/helpers/pick';
+
+const IMAGE_FIELDS = [
+  { name: 'coverImage', maxCount: 1 },
+  { name: 'before', maxCount: 1 },
+  { name: 'during', maxCount: 1 },
+  { name: 'completed', maxCount: 1 },
+];
+
+const PROJECT_BODY_SCHEMA = {
+  type: 'object',
+  properties: {
+    title: { type: 'string', example: 'Lakeside Family Residence' },
+    description: { type: 'string', example: 'A full-scope residential rebuild...' },
+    scope: { type: 'string', example: 'Full foundation-to-finish residential build' },
+    challenge: { type: 'string', example: 'Unstable soil required deep pier foundations' },
+    a7Solution: { type: 'string', example: 'Engineered a helical pier foundation system' },
+    result: { type: 'string', example: 'Delivered 3 weeks ahead of schedule' },
+    equipmentsUsed: { type: 'string', example: 'Excavator, concrete pump, tower crane' },
+    timeline: { type: 'string', example: '6 months (Mar 2025 - Sep 2025)' },
+    constructionProcess: { type: 'string', example: 'Poured slab foundation, framing complete' },
+    projectExperience: { type: 'string', example: 'Client was closely involved in material selection' },
+    coverImage: { type: 'string', format: 'binary' },
+    before: { type: 'string', format: 'binary' },
+    during: { type: 'string', format: 'binary' },
+    completed: { type: 'string', format: 'binary' },
+  },
+};
 
 @ApiTags('Project')
 @Controller('project')
@@ -37,38 +64,20 @@ export class ProjectController {
   constructor(private readonly projectService: ProjectService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a project (admin only)' })
+  @ApiOperation({ summary: 'Create a project (admin only) - every field optional' })
   @ApiBearerAuth('access-token')
   @ApiConsumes('multipart/form-data')
   @UseGuards(AuthGuard('admin'))
-  @UseInterceptors(FilesInterceptor('images', 5, fileUpload.uploadConfig))
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        projectName: { type: 'string', example: 'Lakeside Family Residence' },
-        location: { type: 'string', example: 'Austin, TX' },
-        projectType: { type: 'string', example: 'New Construction' },
-        category: { type: 'string', example: 'Residential' },
-        completion: { type: 'string', example: 'March 2025' },
-        duration: { type: 'string', example: '6 months' },
-        description: { type: 'string', example: 'Describe your project in detail...' },
-        images: {
-          type: 'array',
-          items: { type: 'string', format: 'binary' },
-          description: 'Up to 5 images',
-        },
-      },
-    },
-  })
+  @UseInterceptors(FileFieldsInterceptor(IMAGE_FIELDS, fileUpload.uploadConfig))
+  @ApiBody({ schema: PROJECT_BODY_SCHEMA })
   @HttpCode(HttpStatus.CREATED)
   async create(
     @Body() createProjectDto: CreateProjectDto,
-    @UploadedFiles() images?: Express.Multer.File[],
+    @UploadedFiles() files?: { [fieldname: string]: Express.Multer.File[] },
   ) {
     const result = await this.projectService.create(
       createProjectDto,
-      images,
+      files as ProjectImageFiles,
     );
     return {
       message: 'Project created successfully',
@@ -81,18 +90,8 @@ export class ProjectController {
   @ApiQuery({ name: 'searchTerm', required: false, type: String, example: '' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  @ApiQuery({
-    name: 'sortBy',
-    required: false,
-    type: String,
-    example: 'createdAt',
-  })
-  @ApiQuery({
-    name: 'sortOrder',
-    required: false,
-    enum: ['asc', 'desc'],
-    example: 'desc',
-  })
+  @ApiQuery({ name: 'sortBy', required: false, type: String, example: 'createdAt' })
+  @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'], example: 'desc' })
   @HttpCode(HttpStatus.OK)
   async findAll(@Req() req: Request) {
     const params = pick(req.query, ['searchTerm']);
@@ -118,39 +117,22 @@ export class ProjectController {
   }
 
   @Put(':id')
-  @ApiOperation({ summary: 'Update a project by id (admin only)' })
+  @ApiOperation({ summary: 'Update a project by id (admin only) - every field optional' })
   @ApiBearerAuth('access-token')
   @ApiConsumes('multipart/form-data')
   @UseGuards(AuthGuard('admin'))
-  @UseInterceptors(FilesInterceptor('images', 5, fileUpload.uploadConfig))
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        projectName: { type: 'string', example: '' },
-        location: { type: 'string', example: '' },
-        projectType: { type: 'string', example: '' },
-        category: { type: 'string', example: '' },
-        completion: { type: 'string', example: '' },
-        duration: { type: 'string', example: '' },
-        description: { type: 'string', example: '' },
-        images: {
-          type: 'array',
-          items: { type: 'string', format: 'binary' },
-        },
-      },
-    },
-  })
+  @UseInterceptors(FileFieldsInterceptor(IMAGE_FIELDS, fileUpload.uploadConfig))
+  @ApiBody({ schema: PROJECT_BODY_SCHEMA })
   @HttpCode(HttpStatus.OK)
   async update(
     @Param('id') id: string,
     @Body() updateProjectDto: UpdateProjectDto,
-    @UploadedFiles() images?: Express.Multer.File[],
+    @UploadedFiles() files?: { [fieldname: string]: Express.Multer.File[] },
   ) {
     const result = await this.projectService.update(
       id,
       updateProjectDto,
-      images,
+      files as ProjectImageFiles,
     );
     return {
       message: 'Project updated successfully',

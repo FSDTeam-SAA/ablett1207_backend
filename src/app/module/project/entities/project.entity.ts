@@ -5,50 +5,47 @@ export type ProjectDocument = HydratedDocument<Project>;
 
 @Schema({ timestamps: true })
 export class Project {
-  @Prop({
-    required: [true, 'Project name is required'],
-    trim: true,
-  })
-  projectName: string;
+  @Prop({ type: String, trim: true, default: null })
+  title: string | null;
 
-  @Prop({
-    required: [true, 'Location is required'],
-    trim: true,
-  })
-  location: string;
+  @Prop({ type: String, default: null })
+  description: string | null;
 
-  @Prop({
-    required: [true, 'Project type is required'],
-    trim: true,
-  })
-  projectType: string;
+  @Prop({ type: String, default: null })
+  coverImage: string | null;
 
-  // Plain string, no enum - handled by frontend
-  @Prop({
-    required: [true, 'Category is required'],
-    trim: true,
-  })
-  category: string;
+  @Prop({ type: String, default: null })
+  scope: string | null;
 
-  @Prop({
-    required: [true, 'Completion date is required'],
-    trim: true,
-  })
-  completion: string;
+  @Prop({ type: String, default: null })
+  challenge: string | null;
 
-  @Prop({
-    required: [true, 'Duration is required'],
-    trim: true,
-  })
-  duration: string;
+  @Prop({ type: String, default: null })
+  a7Solution: string | null;
 
-  @Prop({
-    required: [true, 'Description is required'],
-  })
-  description: string;
+  @Prop({ type: String, default: null })
+  result: string | null;
 
-  @Prop({ type: [String], default: [] })
-  images: string[];
+  @Prop({ type: String, default: null })
+  equipmentsUsed: string | null;
+
+  @Prop({ type: String, default: null })
+  timeline: string | null;
+
+  @Prop({ type: String, default: null })
+  before: string | null;
+
+  @Prop({ type: String, default: null })
+  during: string | null;
+
+  @Prop({ type: String, default: null })
+  completed: string | null;
+
+  @Prop({ type: String, default: null })
+  constructionProcess: string | null;
+
+  @Prop({ type: String, default: null })
+  projectExperience: string | null;
 }
 
 export const ProjectSchema = SchemaFactory.createForClass(Project);
