@@ -26,6 +26,7 @@ import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import AuthGuard from 'src/app/middlewares/auth.guard';
+import { OptionalAuthGuard } from 'src/app/middlewares/optional-auth.guard';
 import pick from 'src/app/helpers/pick';
 import { BOOKING_STATUSES } from './entities/booking.entity';
 
@@ -91,14 +92,46 @@ export class BookingController {
     };
   }
 
+  // ---------- ADMIN: booked slots ----------
+
+  @Get('slots/booked')
+  @ApiOperation({
+    summary:
+      'Get every slot a user has booked, with date/time + requester contact info (admin only)',
+  })
+  @ApiBearerAuth('access-token')
+  @UseGuards(AuthGuard('admin'))
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: BOOKING_STATUSES as unknown as string[],
+    description: 'Defaults to everything except cancelled',
+  })
+  @HttpCode(HttpStatus.OK)
+  async bookedSlots(@Query('status') status?: string) {
+    const result = await this.bookingService.findBookedSlots(status);
+    return {
+      message: 'Booked slots fetched successfully',
+      data: result,
+    };
+  }
+
   // ---------- PUBLIC: request a booking ----------
 
   @Post()
-  @ApiOperation({ summary: 'Request a booking for a slot (public)' })
+  @ApiOperation({
+    summary:
+      'Request a booking for a slot (public - works for guests; if a logged-in user\'s token is sent, the booking is linked to their account)',
+  })
+  @ApiBearerAuth('access-token')
+  @UseGuards(OptionalAuthGuard)
   @ApiBody({ type: CreateBookingDto })
   @HttpCode(HttpStatus.CREATED)
-  async createBooking(@Body() createBookingDto: CreateBookingDto) {
-    const result = await this.bookingService.createBooking(createBookingDto);
+  async createBooking(@Req() req: Request, @Body() createBookingDto: CreateBookingDto) {
+    const result = await this.bookingService.createBooking(
+      createBookingDto,
+      req.user?.id,
+    );
     return {
       message: 'Booking request submitted, awaiting admin approval',
       data: result,
@@ -108,9 +141,12 @@ export class BookingController {
   // ---------- ADMIN: manage bookings ----------
 
   @Get()
-  @ApiOperation({ summary: 'Get all bookings, filterable by status (admin only)' })
+  @ApiOperation({
+    summary:
+      'Get bookings (logged in only) - admin sees all, a regular user sees only their own',
+  })
   @ApiBearerAuth('access-token')
-  @UseGuards(AuthGuard('admin'))
+  @UseGuards(AuthGuard('user', 'admin'))
   @ApiQuery({ name: 'searchTerm', required: false, type: String, example: '' })
   @ApiQuery({
     name: 'status',
@@ -125,7 +161,10 @@ export class BookingController {
   async findAllBookings(@Req() req: Request) {
     const params = pick(req.query, ['searchTerm', 'status']);
     const options = pick(req.query, ['limit', 'page', 'sortBy', 'sortOrder']);
-    const result = await this.bookingService.findAllBookings(params, options);
+    const result = await this.bookingService.findAllBookings(params, options, {
+      id: req.user!.id,
+      role: req.user!.role,
+    });
     return {
       message: 'Bookings fetched successfully',
       meta: result.meta,
@@ -134,13 +173,19 @@ export class BookingController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a single booking (admin only)' })
+  @ApiOperation({
+    summary:
+      'Get a single booking (logged in only) - admin can view any, a regular user only their own',
+  })
   @ApiBearerAuth('access-token')
-  @UseGuards(AuthGuard('admin'))
+  @UseGuards(AuthGuard('user', 'admin'))
   @ApiParam({ name: 'id', type: String })
   @HttpCode(HttpStatus.OK)
-  async findOneBooking(@Param('id') id: string) {
-    const result = await this.bookingService.findOneBooking(id);
+  async findOneBooking(@Param('id') id: string, @Req() req: Request) {
+    const result = await this.bookingService.findOneBooking(id, {
+      id: req.user!.id,
+      role: req.user!.role,
+    });
     return {
       message: 'Booking fetched successfully',
       data: result,
