@@ -118,7 +118,7 @@ export class BookingService {
 
   // ---------- BOOKING: public request, admin accept/reject/complete ----------
 
-  async createBooking(dto: CreateBookingDto) {
+  async createBooking(dto: CreateBookingDto, userId?: string) {
     const schedule = await this.scheduleModel.findById(dto.scheduleId);
     if (!schedule) {
       throw new HttpException('Schedule not found', 404);
@@ -137,6 +137,7 @@ export class BookingService {
     const booking = await this.bookingModel.create({
       ...dto,
       status: 'pending',
+      userId: userId ?? null,
     });
 
     // Lock it immediately so two people can't request the same slot
@@ -146,38 +147,122 @@ export class BookingService {
     return booking;
   }
 
+  /**
+   * Admin: every slot that a user has actually booked - i.e. every
+   * Booking that isn't cancelled - flattened with the real slot
+   * date/time (pulled from the embedded schedule.slots array) plus the
+   * requester's contact info. Filter with ?status=pending|scheduled|completed,
+   * or omit status to get everything except cancelled ones.
+   */
+  async findBookedSlots(status?: string) {
+    const query: Record<string, unknown> =
+      status && status !== 'all'
+        ? { status }
+        : { status: { $ne: 'cancelled' } };
+
+    const bookings = await this.bookingModel
+      .find(query)
+      .sort({ createdAt: -1 });
+
+    const scheduleIds = [...new Set(bookings.map((b) => b.scheduleId.toString()))];
+    const schedules = await this.scheduleModel.find({
+      _id: { $in: scheduleIds },
+    });
+    const scheduleMap = new Map(schedules.map((s) => [s._id.toString(), s]));
+
+    return bookings.map((booking) => {
+      const schedule = scheduleMap.get(booking.scheduleId.toString());
+      const slot = schedule?.slots.id(booking.slotId);
+
+      return {
+        bookingId: booking._id,
+        name: booking.name,
+        phoneNumber: booking.phoneNumber,
+        email: booking.email,
+        projectLocation: booking.projectLocation,
+        message: booking.message,
+        status: booking.status,
+        date: schedule?.date ?? null,
+        startTime: slot?.startTime ?? null,
+        endTime: slot?.endTime ?? null,
+      };
+    });
+  }
+
+  /**
+   * Attaches just the specific booked slot's date/startTime/endTime to
+   * each booking, instead of populating the whole Schedule document
+   * (which would drag in all 15+ slots for that day, most irrelevant).
+   */
+  private async enrichBookings<T extends BookingDocument>(bookings: T[]) {
+    const scheduleIds = [...new Set(bookings.map((b) => b.scheduleId.toString()))];
+    const schedules = await this.scheduleModel.find({
+      _id: { $in: scheduleIds },
+    });
+    const scheduleMap = new Map(schedules.map((s) => [s._id.toString(), s]));
+
+    return bookings.map((booking) => {
+      const schedule = scheduleMap.get(booking.scheduleId.toString());
+      const slot = schedule?.slots.id(booking.slotId);
+
+      return {
+        ...booking.toObject(),
+        date: schedule?.date ?? null,
+        startTime: slot?.startTime ?? null,
+        endTime: slot?.endTime ?? null,
+      };
+    });
+  }
+
   async findAllBookings(
     params: IFilterParams & { status?: string },
     options: IOptions,
+    currentUser: { id: string; role: string },
   ) {
     const { limit, page, skip, sortBy, sortOrder } = paginationHelper(options);
     const { status, ...restParams } = params;
     const whereConditions = buildWhereConditions(
       restParams,
       bookingSearchAbleFields,
-    );
+    ) as Record<string, unknown>;
 
     if (status) {
-      (whereConditions as Record<string, unknown>).status = status;
+      whereConditions.status = status;
+    }
+
+    // Admin sees every booking. A logged-in non-admin only ever sees
+    // bookings they personally submitted while logged in.
+    if (currentUser.role !== 'admin') {
+      whereConditions.userId = currentUser.id;
     }
 
     const total = await this.bookingModel.countDocuments(whereConditions);
-    const data = await this.bookingModel
+    const bookings = await this.bookingModel
       .find(whereConditions)
-      .populate('scheduleId')
       .skip(skip)
       .limit(limit)
       .sort({ [sortBy]: sortOrder } as any);
 
+    const data = await this.enrichBookings(bookings);
+
     return { meta: { page, limit, total }, data };
   }
 
-  async findOneBooking(id: string) {
-    const result = await this.bookingModel.findById(id).populate('scheduleId');
+  async findOneBooking(id: string, currentUser: { id: string; role: string }) {
+    const result = await this.bookingModel.findById(id);
     if (!result) {
       throw new HttpException('Booking not found', 404);
     }
-    return result;
+
+    const isOwner =
+      result.userId && result.userId.toString() === currentUser.id;
+
+    if (currentUser.role !== 'admin' && !isOwner) {
+      throw new HttpException('Forbidden', 403);
+    }
+
+    const [enriched] = await this.enrichBookings([result]);
+    return enriched;
   }
 
   async updateBookingStatus(id: string, dto: UpdateBookingDto) {
