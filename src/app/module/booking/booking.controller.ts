@@ -81,11 +81,26 @@ export class BookingController {
   }
 
   @Get('slots')
-  @ApiOperation({ summary: 'Get available slots for a specific date (public)' })
-  @ApiQuery({ name: 'date', required: true, example: '2026-06-18' })
+  @ApiOperation({
+    summary:
+      'Get available slots (public). Pass ?date=YYYY-MM-DD for a single day, ' +
+      'or ?startDate=&endDate= for a range, or omit all params to get every ' +
+      'currently-available slot across every day - useful for populating a full calendar view in one call.',
+  })
+  @ApiQuery({ name: 'date', required: false, example: '2026-06-18' })
+  @ApiQuery({ name: 'startDate', required: false, example: '2026-06-18' })
+  @ApiQuery({ name: 'endDate', required: false, example: '2026-06-30' })
   @HttpCode(HttpStatus.OK)
-  async availableSlots(@Query('date') date: string) {
-    const result = await this.bookingService.findAvailableSlotsByDate(date);
+  async availableSlots(
+    @Query('date') date?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const result = await this.bookingService.findAvailableSlots({
+      date,
+      startDate,
+      endDate,
+    });
     return {
       message: 'Available slots fetched successfully',
       data: result,

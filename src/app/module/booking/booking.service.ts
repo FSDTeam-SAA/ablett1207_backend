@@ -89,19 +89,39 @@ export class BookingService {
 
   // ---------- PUBLIC: see only available slots ----------
 
-  async findAvailableSlotsByDate(date: string) {
-    const schedule = await this.scheduleModel.findOne({ date });
-    if (!schedule) return [];
+  async findAvailableSlots(filters: {
+    date?: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const query: Record<string, unknown> = {};
 
-    return schedule.slots
-      .filter((slot) => slot.status === 'available')
-      .map((slot) => ({
-        scheduleId: schedule._id,
-        slotId: slot._id,
-        date: schedule.date,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-      }));
+    if (filters.date) {
+      query.date = filters.date;
+    } else if (filters.startDate || filters.endDate) {
+      const range: Record<string, string> = {};
+      if (filters.startDate) range.$gte = filters.startDate;
+      if (filters.endDate) range.$lte = filters.endDate;
+      query.date = range;
+    }
+    // if none of date/startDate/endDate are given, no date filter at all -
+    // every schedule that currently has available slots is returned
+
+    const schedules = await this.scheduleModel.find(query).sort({ date: 1 });
+
+    const flat = schedules.flatMap((schedule) =>
+      schedule.slots
+        .filter((slot) => slot.status === 'available')
+        .map((slot) => ({
+          scheduleId: schedule._id,
+          slotId: slot._id,
+          date: schedule.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        })),
+    );
+
+    return flat;
   }
 
   async findAvailableDates() {
