@@ -97,6 +97,7 @@ export class QuoteService {
     const total = await this.quoteModel.countDocuments(whereConditions);
     const data = await this.quoteModel
       .find(whereConditions)
+      .populate('userId', 'fullName email phoneNumber profilePicture role')
       .skip(skip)
       .limit(limit)
       .sort({ [sortBy]: sortOrder } as any);
@@ -108,13 +109,15 @@ export class QuoteService {
   }
 
   async findOne(id: string, currentUser: { id: string; role: string }) {
-    const result = await this.quoteModel.findById(id);
+    const result = await this.quoteModel
+      .findById(id)
+      .populate('userId', 'fullName email phoneNumber profilePicture role');
     if (!result) {
       throw new HttpException('Quote request not found', 404);
     }
 
-    const isOwner =
-      result.userId && result.userId.toString() === currentUser.id;
+    const ownerId = (result.userId as any)?._id ?? result.userId;
+    const isOwner = ownerId && ownerId.toString() === currentUser.id;
 
     if (currentUser.role !== 'admin' && !isOwner) {
       throw new HttpException('Forbidden', 403);
