@@ -182,6 +182,7 @@ export class BookingService {
 
     const bookings = await this.bookingModel
       .find(query)
+      .populate('userId', 'fullName email phoneNumber profilePicture role')
       .sort({ createdAt: -1 });
 
     const scheduleIds = [...new Set(bookings.map((b) => b.scheduleId.toString()))];
@@ -202,6 +203,9 @@ export class BookingService {
         projectLocation: booking.projectLocation,
         message: booking.message,
         status: booking.status,
+        // The registered account this was submitted under, if the person
+        // was logged in at the time - null for guest bookings
+        bookedByAccount: booking.userId ?? null,
         date: schedule?.date ?? null,
         startTime: slot?.startTime ?? null,
         endTime: slot?.endTime ?? null,
@@ -259,6 +263,7 @@ export class BookingService {
     const total = await this.bookingModel.countDocuments(whereConditions);
     const bookings = await this.bookingModel
       .find(whereConditions)
+      .populate('userId', 'fullName email phoneNumber profilePicture role')
       .skip(skip)
       .limit(limit)
       .sort({ [sortBy]: sortOrder } as any);
@@ -269,13 +274,15 @@ export class BookingService {
   }
 
   async findOneBooking(id: string, currentUser: { id: string; role: string }) {
-    const result = await this.bookingModel.findById(id);
+    const result = await this.bookingModel
+      .findById(id)
+      .populate('userId', 'fullName email phoneNumber profilePicture role');
     if (!result) {
       throw new HttpException('Booking not found', 404);
     }
 
-    const isOwner =
-      result.userId && result.userId.toString() === currentUser.id;
+    const ownerId = (result.userId as any)?._id ?? result.userId;
+    const isOwner = ownerId && ownerId.toString() === currentUser.id;
 
     if (currentUser.role !== 'admin' && !isOwner) {
       throw new HttpException('Forbidden', 403);
