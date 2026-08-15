@@ -318,6 +318,16 @@ export class BookingService {
     if (!booking) {
       throw new HttpException('Booking not found', 404);
     }
+
+    // Free the slot back up so it isn't permanently orphaned in a
+    // locked state with no booking record left to explain it
+    const schedule = await this.scheduleModel.findById(booking.scheduleId);
+    const slot = schedule?.slots.id(booking.slotId);
+    if (slot && slot.status !== 'available') {
+      slot.status = 'available';
+      await schedule!.save();
+    }
+
     return this.bookingModel.findByIdAndDelete(id);
   }
 }
